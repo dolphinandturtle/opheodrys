@@ -1,6 +1,13 @@
+import os
 from dataclasses import dataclass
 from typing import Callable
 
+
+@dataclass(slots=True)
+class Node:
+    state: object
+    system: object
+    unvisited: list
 
 @dataclass(slots=True, frozen=True)
 class Hiker:
@@ -10,8 +17,7 @@ class Hiker:
     def __call__(self, obj, matching: Callable[[...], bool], start) -> list[list]:
         output = []
         system = self.goto(obj, start)
-        unvisited = self.choices(system)
-        stack = [Hiker.Node(start, system, unvisited)]
+        stack = [Node(start, system, self.choices(system))]
         while stack:
             head = stack[-1]
             #print([_.state for _ in stack], [_.unvisited for _ in stack])
@@ -20,16 +26,10 @@ class Hiker:
                 continue
             _state = head.unvisited.pop()
             _system = self.goto(head.system, _state)
-            stack.append(Hiker.Node(_state, _system, self.choices(_system)))
+            stack.append(Node(_state, _system, self.choices(_system)))
             if matching(_system):
                 output.append([item.state for item in stack])
         return output
-
-    @dataclass(slots=True)
-    class Node:
-        state: object
-        system: object
-        unvisited: list
 
 
 dict_hiker = Hiker(
@@ -38,8 +38,6 @@ dict_hiker = Hiker(
                      else (list(obj.keys()) if isinstance(obj, dict)
                            else list())
 )
-
-import os
 file_hiker = Hiker(
     lambda d, k: f"{d.rstrip('/')}/{k.rstrip('/')}",
     lambda obj: os.listdir(obj) if os.path.isdir(obj) else []
@@ -48,17 +46,16 @@ file_hiker = Hiker(
 
 if __name__ == "__main__":
 
-    MAZE = {'A': {'B': {'D': {'G': False, 'H': {'J': {'M': True}}}, 'E': True}, 'C': False}}
-    print(dict_hiker(MAZE, lambda v: type(v) == bool and bool(v), 'A'))
+    #MAZE = {'A': {'B': {'D': {'G': False, 'H': {'J': {'M': True}}}, 'E': True}, 'C': False}}
+    #print(dict_hiker(MAZE, lambda v: type(v) == bool and bool(v), 'A'))
 
     '''
     import json
     d = json.load(open("large-file.json", "r"))
-    print(d)
     output = []
     for i in range(len(d)):
-        output += dict_hiker(d, lambda v: v == "download", i)
+        output += dict_hiker(d, lambda v: isinstance(v, str) and "Event" in v, i)
     print(output)
     '''
 
-    #print(file_hiker('/home/user/', lambda v: "bsterthegawd" in v, ''))
+    #print(file_hiker('/home/user/', lambda v: isinstance(v, str) and "bsterthegawd" in v, ''))
