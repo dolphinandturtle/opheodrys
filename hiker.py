@@ -49,13 +49,12 @@ if __name__ == "__main__":
     #MAZE = {'A': {'B': {'D': {'G': False, 'H': {'J': {'M': True}}}, 'E': True}, 'C': False}}
     #print(dict_hiker(MAZE, lambda v: type(v) == bool and bool(v), 'A'))
 
-    '''
+
     import json
     d = json.load(open("large-file.json", "r"))
     output = []
     for i in range(len(d)):
         output += dict_hiker(d, lambda v: isinstance(v, str) and "Event" in v, i)
     print(output)
-    '''
 
     #print(file_hiker('/home/user/', lambda v: isinstance(v, str) and "bsterthegawd" in v, ''))
