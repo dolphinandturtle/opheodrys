@@ -1,31 +1,102 @@
 import os
 from dataclasses import dataclass
-from typing import Callable
+from typing import Hashable, Callable
 import functools
+import threading
 
 
+'''
 @dataclass(slots=True, frozen=True)
 class Node:
-    depth: int
     parent: object
+    current: object
     children: list[object]
+'''
+
+@dataclass(slots=True)
+class Node:
+    reference: object
+    system: object
+    unvisited: list
 
 
-def sleepwalk(obj, goto: Callable, options: Callable, call: Callable):
+def diverge(obj, from_to: Callable, options: Callable, call: Callable):
     stack = [Node(None, obj, options(obj))]
     while stack:
         head = stack[-1]
-        if not head.unvisited:
+        if head.unvisited:
+            _reference = head.unvisited.pop()
+            _system = from_to(head.system, _reference)
+            stack.append(Node(_reference, _system, options(_system)))
+            call(_system)
+        else:
             del stack[-1]
-            continue
-        _state = head.unvisited.pop()
-        _system = goto(head.system, _state)
-        stack.append(Node(_state, _system, options(_system)))
-        call(_state, _system)
     return
 
 
-def walk(obj, goto: Callable, options: Callable, call: Callable, output: list):
+
+@dataclass(slots=True)
+class Node:
+    reference: object
+    system: object
+    branches: int
+
+
+def converge(obj, from_to: Callable, options: Callable, call: Callable):
+    unvisited = options(obj)
+    stack = [Node(None, obj, len(unvisited))]
+    while stack:
+        head = stack[-1]
+        if head.branches:
+            head.branches -= 1
+            _reference = unvisited.pop()
+            _system = from_to(head.system, _reference)
+            _unvisited = options(_system)
+            unvisited.extend(_unvisited)
+            stack.append(Node(_reference, _system, len(_unvisited)))
+        else:
+            call(head.system)
+            del stack[-1]
+    return
+
+
+def doublewalk(obj, from_to: Callable, options: Callable, headcall: Callable, tailcall: Callable):
+    stack = [Node(None, obj, options(obj))]
+    while stack:
+        head = stack[-1]
+        if head.unvisited:
+            _reference = head.unvisited.pop()
+            _system = from_to(head.system, _reference)
+            stack.append(Node(_reference, _system, options(_system)))
+            headcall(_system)
+        else:
+            tailcall(head.system)
+            del stack[-1]
+    return
+
+
+def multi_sleepwalk(obj, from_to: Callable, options: Callable, call: Callable, thread_count: int = 4):
+    ARGS_FIXED = [from_to, options, call, thread_count]
+    stack = [Node(None, obj, options(obj))]
+    while stack:
+        head = stack[-1]
+        if head.unvisited:
+            _reference = head.unvisited.pop()
+            _system = from_to(head.system, _reference)
+            if threading.active_count() < thread_count:
+                threading.Thread(
+                    target=multi_sleepwalk,
+                    args=[_system] + ARGS_FIXED,
+                ).start()
+            else:
+                stack.append(Node(_reference, _system, options(_system)))
+        else:
+            call(head.system)
+            del stack[-1]
+    return
+
+
+def walk(obj, goto: Callable, options: Callable, call: Callable, output: dict[Hashable, Node]):
     steps = []
     stack = [Node(None, obj, options(obj))]
     while stack:
@@ -36,16 +107,17 @@ def walk(obj, goto: Callable, options: Callable, call: Callable, output: list):
         _state = head.unvisited.pop()
         _system = goto(head.system, _state)
         stack.append(Node(_state, _system, options(_system)))
-        output.append(call(_state, _system))
+        output.append(call(_system))
         steps.append(stack[1:])
     return
 
 
-@dataclass(slots=True)
-class Node:
-    state: object
-    system: object
-    unvisited: list
+
+#@dataclass(slots=True)
+#class Node:
+#    state: object
+#    system: object
+#    unvisited: list
 
 
 def browser(cls, goto: Callable, options: Callable):
@@ -110,9 +182,23 @@ PathBrowser = browser(str, path_goto, path_options)
 
 if __name__ == "__main__":
 
+    MAZE = {'A': {'B': {'D': {'G': False, 'H': {'J': {'M': True, 'Z': False}}}, 'E': True}, 'C': False}}
+    from time import sleep
+    def slow_print(*args, **kwargs):
+        #sleep(1.5)
+        return print(*args, **kwargs)
+    converge(MAZE, map_goto, map_options, slow_print)
 
-    MAZE = DictBrowser({'A': {'B': {'D': {'G': False, 'H': {'J': {'M': True}}}, 'E': True}, 'C': False}})
-    print(MAZE.find_all(lambda v: type(v) == bool and bool(v)))
+    '''
+    def find_bster(v):
+        if isinstance(v, str) and "bsterthegawd" in v:
+            print(v)
+
+    multi_sleepwalk('/', path_goto, path_options, find_bster, thread_count=20)
+    '''
+
+    #MAZE = DictBrowser({'A': {'B': {'D': {'G': False, 'H': {'J': {'M': True}}}, 'E': True}, 'C': False}})
+    #print(MAZE.find_all(lambda v: type(v) == bool and bool(v)))
 
 
     '''
