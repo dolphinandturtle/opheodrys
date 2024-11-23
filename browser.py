@@ -41,19 +41,22 @@ class Node:
     system: object
     branches: int
 
+    def propagate(self, goto, next, unvisited):
+        self.branches -= 1
+        reference = unvisited.pop()
+        system = goto(self.system, reference)
+        branches = len(unvisited)
+        unvisited.extend(next(system))
+        return Node(reference, system, len(unvisited) - branches)
 
-def converge(obj, from_to: Callable, options: Callable, call: Callable):
-    unvisited = options(obj)
+
+def converge(obj, goto: Callable, next: Callable, call: Callable):
+    unvisited = next(obj)
     stack = [Node(None, obj, len(unvisited))]
     while stack:
         head = stack[-1]
         if head.branches:
-            head.branches -= 1
-            _reference = unvisited.pop()
-            _system = from_to(head.system, _reference)
-            _unvisited = options(_system)
-            unvisited.extend(_unvisited)
-            stack.append(Node(_reference, _system, len(_unvisited)))
+            stack.append(head.propagate(goto, next, unvisited))
         else:
             call(head.system)
             del stack[-1]
@@ -187,7 +190,8 @@ if __name__ == "__main__":
     def slow_print(*args, **kwargs):
         #sleep(1.5)
         return print(*args, **kwargs)
-    converge(MAZE, map_goto, map_options, slow_print)
+    #converge(MAZE, map_goto, map_options, slow_print)
+    multi_sleepwalk(MAZE, map_goto, map_options, slow_print)
 
     '''
     def find_bster(v):
