@@ -3,6 +3,77 @@ from dataclasses import dataclass
 from threading import Thread, active_count
 
 
+
+def analyze(obj, from_to: Callable, next: Callable, finite: list, loops: list):
+    path = [obj]
+    buffered = next(obj)
+    breaks = [len(buffered)]
+    while path:
+        if breaks[-1]:
+            breaks[-1] -= 1
+            step = from_to(path[-1], buffered.pop())
+            if step in path:
+                loops.append(path)
+            else:
+                discovered = next(step)
+                path.append(step)
+                breaks.append(len(discovered))
+                buffered.extend(discovered)
+        else:
+            finite.append(path)
+            del path[-1]
+            del breaks[-1]
+    return
+
+
+
+
+
+
+
+def free(obj, from_to: Callable, next: Callable, output: list):
+    path = [obj]
+    buffered = next(obj)
+    breaks = [len(buffered)]
+    while path:
+        if breaks[-1]:
+            breaks[-1] -= 1
+            step = from_to(path[-1], buffered.pop())
+            if step not in path:
+                discovered = next(step)
+                path.append(step)
+                breaks.append(len(discovered))
+                buffered.extend(discovered)
+        else:
+            output.append(path)
+            del path[-1]
+            del breaks[-1]
+    return
+
+
+def noloops(obj, from_to: Callable, next: Callable, output: list):
+    path = [obj]
+    buffered = next(obj)
+    breaks = [len(buffered)]
+    while path:
+        if breaks[-1]:
+            breaks[-1] -= 1
+            step = from_to(path[-1], buffered.pop())
+            discovered = next(step)
+            path.append(step)
+            breaks.append(len(discovered))
+            buffered.extend(discovered)
+        else:
+            output.append(path)
+            del path[-1]
+            del breaks[-1]
+    return
+
+
+
+
+
+
 def converge(obj, from_to: Callable, next: Callable, call: Callable):
     path = [obj]
     buffered = next(obj)
