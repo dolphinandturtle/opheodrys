@@ -4,38 +4,39 @@ from threading import Thread, active_count
 
 
 
-def analyze(obj, from_to: Callable, next: Callable, finite: list, loops: list):
+# one-to-one
+
+def flatten(obj, from_to: Callable, next: Callable, output: list):
     path = [obj]
     buffered = next(obj)
     breaks = [len(buffered)]
     while path:
-        if breaks[-1]:
-            breaks[-1] -= 1
-            step = from_to(path[-1], buffered.pop())
-            if step in path:
-                loops.append(path)
-            else:
-                discovered = next(step)
-                path.append(step)
-                breaks.append(len(discovered))
-                buffered.extend(discovered)
-        else:
-            finite.append(path)
+        #print(breaks, buffered)
+        print(buffered, breaks, path)
+        breaks[-1] -= 1
+        step = from_to(path[-1], buffered.pop())
+        discovered = next(step)
+        if not breaks[-1]:
             del path[-1]
             del breaks[-1]
+        if not discovered:
+            output.append(step)
+        else:
+            path.append(step)
+            breaks.append(len(discovered))
+            buffered.extend(discovered)
     return
 
 
 
 
 
-
-
-def free(obj, from_to: Callable, next: Callable, output: list):
+def analyze(obj, from_to: Callable, next: Callable):
     path = [obj]
     buffered = next(obj)
     breaks = [len(buffered)]
     while path:
+        print(buffered, breaks)
         if breaks[-1]:
             breaks[-1] -= 1
             step = from_to(path[-1], buffered.pop())
@@ -45,55 +46,13 @@ def free(obj, from_to: Callable, next: Callable, output: list):
                 breaks.append(len(discovered))
                 buffered.extend(discovered)
         else:
-            output.append(path)
             del path[-1]
             del breaks[-1]
     return
 
 
-def noloops(obj, from_to: Callable, next: Callable, output: list):
-    path = [obj]
-    buffered = next(obj)
-    breaks = [len(buffered)]
-    while path:
-        if breaks[-1]:
-            breaks[-1] -= 1
-            step = from_to(path[-1], buffered.pop())
-            discovered = next(step)
-            path.append(step)
-            breaks.append(len(discovered))
-            buffered.extend(discovered)
-        else:
-            output.append(path)
-            del path[-1]
-            del breaks[-1]
-    return
-
-
-
-
-
-
-def converge(obj, from_to: Callable, next: Callable, call: Callable):
-    path = [obj]
-    buffered = next(obj)
-    breaks = [len(buffered)]
-    while path:
-        if breaks[-1]:
-            breaks[-1] -= 1
-            step = from_to(path[-1], buffered.pop())
-            path.append(step)
-            discovered = next(step)
-            breaks.append(len(discovered))
-            buffered.extend(discovered)
-        else:
-            call(path.pop())
-            del breaks[-1]
-    return
-
-
-def multi_converge(obj, from_to: Callable, next: Callable, call: Callable, thread_count: int = 4):
-    ARGS_FIXED = [from_to, next, call, thread_count]
+def multi_converge(obj, from_to: Callable, next: Callable, finite: list, loops: list, thread_count: int = 4):
+    ARGS_FIXED = [from_to, next, call, finite, loops, thread_count]
     path = [obj]
     buffered = next(obj)
     breaks = [len(buffered)]
@@ -103,13 +62,16 @@ def multi_converge(obj, from_to: Callable, next: Callable, call: Callable, threa
             step = from_to(path[-1], buffered.pop())
             if active_count() < thread_count:
                 Thread(target=multi_converge, args=[step]+ARGS_FIXED).start()
+            elif step in path:
+                loops.append(path.copy())
             else:
-                path.append(step)
                 discovered = next(step)
+                path.append(step)
                 breaks.append(len(discovered))
                 buffered.extend(discovered)
         else:
-            call(path.pop())
+            finite.append(path.copy())
+            del path[-1]
             del breaks[-1]
     return
 
@@ -128,4 +90,6 @@ if __name__ == "__main__":
             return []
 
     MAZE = {'A': {'B': {'D': {'G': False, 'H': {'J': {'M': True, 'Z': False}}}, 'E': True}, 'C': False}}
-    converge(MAZE, map_goto, map_options, print)
+    o = []
+    flatten(MAZE, map_goto, map_options, o)
+    print(o)
