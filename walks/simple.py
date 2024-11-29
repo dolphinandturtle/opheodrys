@@ -67,11 +67,21 @@ class Buffer:
         self.data.extend(values)
         self.partitions.append(len(values))
 
-    def pop(self):
+    def countdown(self):
         if self.partitions[-1]:
             self.partitions[-1] -=1
         else:
             raise Exception("Buffer underflow, out-of-bounds element popped")
+
+    def cut(self):
+        del self.data[-1]
+
+    def use(self):
+        self.countdown()
+        return self.data[-1]
+
+    def pop(self):
+        self.countdown()
         return self.data.pop()
 
 
@@ -188,23 +198,16 @@ def get_values_multi(obj, driver: Driver, output: list, thread_count: int = 4):
 
 
 def reduce(obj, driver: Driver, call: Callable):
-    raise NotImplementedError
-    '''
-    Not implemented
-    '''
     visited = [obj]
     unvisited = Buffer(driver.discover(obj))
     while visited:
-        print(unvisited.partitions, unvisited.data)
         if unvisited.locked:
             unvisited.unlock()
             call(visited.pop())
         else:
             root = driver.visit_from(visited[-1], unvisited.pop())
             branches = driver.discover(root)
-            if not branches:
-                call(visited[-1])
-            else:
+            if branches:
                 visited.append(root)
                 unvisited.append(branches)
     return
@@ -212,11 +215,11 @@ def reduce(obj, driver: Driver, call: Callable):
 
 
 if __name__ == "__main__":
-    #o = []
+    o = []
 
     maze = {'A': {'B': {'D': {'G': False, 'H': {'J': {'M': True, 'Z': False}}}, 'E': True}, 'C': False}}
-    reduce(maze, TABLE_DRIVER, print)
-    #print(o)
+    get_values(maze, TABLE_DRIVER, o)
+    print(o)
 
     #get_values_multi('/home/user/Downloads', PATH_DRIVER, o)
     #print(*o, sep='\n')
