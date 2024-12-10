@@ -1,55 +1,79 @@
+from dataclasses import dataclass
 from random import randint, random
 from typing import Tuple, Any
 
 
-def get_components_random(count_id: int, count_component: int):
-    seed_ids = [[i for i in range(count_id) if random() > .6] for _ in range(count_component)]
-    return {''.join(chr(randint(48, 123)) for _ in range(randint(0, 10))): {
-        'ids': seed_ids[_],
-        'values': [i * random() for i in seed_ids[_]]
-    } for _ in range(count_component)}
+@dataclass(slots=True)
+class Component:
+    ids: list[int]
+    data: list[Any]
 
-def get_id_max(components: dict):
-    return max([max(value['ids']) for value in components.values() if value['ids']])
+    
+def cstring(string, fcolor=None, bcolor=None):
+    '''Color id's span from 1 to 255'''
+    init_background = '\033[48;5;'
+    init_foreground = '\033[38;5;'
+    stopper = 'm'
+    terminator = '\033[0;0m'
+    if fcolor is not None or bcolor is not None:
+        string += terminator
+    if fcolor is not None:
+        foreground = init_foreground + str(fcolor) + stopper
+        string = foreground + string
+    if bcolor is not None:
+        background = init_background + str(bcolor) + stopper
+        string = background + string
+    return string
 
-def pretty_entropy_map(components: dict):
-    len_type_max = max(map(len, components)) + 1
-    id_max = get_id_max(components)
-    grid_id = ' '.join(map(str, range(id_max + 1)))
-    output = ' ' * len_type_max + grid_id + '\n'
-    output += ' ' * len_type_max + '-' * len(grid_id) + '\n'
-    for key, data in components.items():
-        output += key
-        output += ' ' * (len_type_max - len(key))
-        output += ' '.join('1' if i in data['ids'] else '0' for i in range(id_max + 1))
-        output += '\n'
+
+def get_components_random(count_id: int, count_component: int) -> list[Component]:
+    ASCII_RANGE = 48, 123
+    LENGHT_WORD = 10
+    THRESHOLD_SPARSITY = .7
+    output = []
+    while count_component:
+        ids_random = [i for i in range(count_id) if random() > THRESHOLD_SPARSITY]
+        values_random = [i * random() for i in ids_random]
+        output.append(Component(ids_random, values_random))
+        count_component -= 1
     return output
 
-def get_entropy_map(components: dict):
-    id_max = get_id_max(components)
-    return {id: [key for key, data in components.items() if id in data['ids']] for id in range(id_max + 1)}
+def get_ids(system: list[Component]) -> list[int]:
+    output = set()
+    for component in system:
+        output |= set(component.ids)
+    return list(sorted(output))
 
+def pretty_entropy_map(system: list[Component]):
+    LENGHT_MAX = len(str(len(system)))
+    ids = get_ids(system)
+    return '\n'.join(''.join('\u2593' if i in component.ids else ' ' for i in ids) for component in system)
 
-def optimize(components: dict) -> list[dict]:
-    emap = get_entropy_map(components)
+def get_entropy_map(system: list[Component]) -> dict[int, list[int]]:
+    return {id: [i for i, component in enumerate(system) if id in component.ids]
+            for id in get_ids(system)}
+
+def optimize(system: list[Component]) -> list[list[Component]]:
+    emap = get_entropy_map(system)
     archetypes = {}
-    for key, partition in emap.items():
+    for id, partition in emap.items():
         if tuple(partition) in archetypes:
-            archetypes[tuple(partition)].append(key)
+            archetypes[tuple(partition)].append(id)
         elif partition:
-            archetypes[tuple(partition)] = [key]
+            archetypes[tuple(partition)] = [id]
 
-    return [{key: {'ids': ids,
-                   'values': [components[key]['values'][components[key]['ids'].index(i)] for i in ids]}
-             for key in keys} for keys, ids in archetypes.items()]
-
+    return [[Component(ids, [system[i].data[system[i].ids.index(id)] for id in ids])
+             for i in indeces] for indeces, ids in archetypes.items()]
 
 
-
-c = get_components_random(30, 3)
+count_id = 100
+count_component = 3
+c = get_components_random(count_id, count_component)
 print(pretty_entropy_map(c))
 #print(get_entropy_map(c))
 
 o = optimize(c)
 #print(*o, sep='\n')
-print(*list(map(pretty_entropy_map, o)), sep='\n')
+o.sort(key=lambda s: len(s[0].ids), reverse=True)
+print(*[pretty_entropy_map(s) for s in o[:10]], sep='\n')
+print(count_id * count_component, '->', count_id)
