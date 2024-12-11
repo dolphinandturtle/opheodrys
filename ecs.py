@@ -9,21 +9,11 @@ class Component:
     data: list[Any]
 
     
-def cstring(string, fcolor=None, bcolor=None):
-    '''Color id's span from 1 to 255'''
-    init_background = '\033[48;5;'
-    init_foreground = '\033[38;5;'
-    stopper = 'm'
-    terminator = '\033[0;0m'
-    if fcolor is not None or bcolor is not None:
-        string += terminator
-    if fcolor is not None:
-        foreground = init_foreground + str(fcolor) + stopper
-        string = foreground + string
-    if bcolor is not None:
-        background = init_background + str(bcolor) + stopper
-        string = background + string
-    return string
+def cstring(string, fcolor):
+    INIT_FOREGROUND = '\033[38;5;'
+    STOPPER = 'm'
+    TERMINATOR = '\033[0;0m'
+    return f"{INIT_FOREGROUND}{fcolor}{STOPPER}{string}{TERMINATOR}"
 
 
 def get_components_random(count_id: int, count_component: int) -> list[Component]:
